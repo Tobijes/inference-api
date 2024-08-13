@@ -1,0 +1,36 @@
+c 1 rl 1: 
+Reqs/sec         2.62      10.88      52.55
+  Latency      387.09ms    42.60ms   503.47ms
+
+  Reqs/sec         6.14      15.42      52.31
+  Latency      163.23ms    26.44ms   335.59ms
+  HTTP codes:
+    1xx - 0, 2xx - 62, 3xx - 0, 4xx - 0, 5xx - 0
+    others - 0
+  Throughput:   132.81KB/s
+
+
+c 10 rl 1:
+ Reqs/sec        20.28      90.60     526.30
+  Latency      484.90ms    25.33ms   596.57ms
+
+  Reqs/sec        35.10     109.60     519.04
+  Latency      283.90ms    34.05ms   481.44ms
+  HTTP codes:
+    1xx - 0, 2xx - 360, 3xx - 0, 4xx - 0, 5xx - 0
+    others - 0
+  Throughput:   763.31KB/s
+
+c 100 rl 1:
+  Reqs/sec        56.07     192.50    1060.05
+  Latency         1.61s   254.41ms      2.31s
+
+  Reqs/sec        61.00     204.58    1099.14
+  Latency         1.53s   269.98ms      2.12s
+
+  Reqs/sec        57.59     202.13    1138.20
+  Latency         1.56s   237.42ms      2.36s
+  HTTP codes:
+    1xx - 0, 2xx - 681, 3xx - 0, 4xx - 0, 5xx - 0
+    others - 0
+  Throughput:     1.28MB/s
