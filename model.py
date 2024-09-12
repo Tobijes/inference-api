@@ -1,29 +1,8 @@
-from typing import List, Any, Callable
-from enum import Enum
+from typing import List
 from sentence_transformers import SentenceTransformer
 
-class TaskType(str, Enum):
-    pass
-
-class InferenceModel():
-    task_type: TaskType
-
-    def __init__(self) -> None:        
-        # Internal
-        self._tasks = {}
-
-    def task(self, task_type: TaskType, data: List[Any]):
-        handler = self._tasks.get(task_type, self._default_handler)
-        return handler(data)
-            
-    def _default_handler(self, data):
-        return data
+from lib.model import InferenceModel, TaskType
     
-    def register_task_handler(self, task_type: TaskType, handler: Callable):
-        self._tasks[task_type] = handler
-
-
-### DEVELOPER ###
 class ModelTaskType(TaskType):
     PASSAGE = "PASSAGE"
     QUERY = "QUERY"
@@ -35,30 +14,15 @@ class Model(InferenceModel):
         super().__init__() 
         print("Loading model...")
         self.model = SentenceTransformer('intfloat/multilingual-e5-large')
-
-        self.register_task_handler(ModelTaskType.PASSAGE, self.handle_passage)
-        self.register_task_handler(ModelTaskType.QUERY, self.handle_query)
         print("Model initiated on", self.model.device)
 
+    @InferenceModel.task(ModelTaskType.PASSAGE)
     def handle_passage(self, texts: List[str]):
         embeddings = self.model.encode(texts, prompt="passage: ", normalize_embeddings=True)
         return embeddings
     
+    @InferenceModel.task(ModelTaskType.QUERY)
     def handle_query(self, texts: List[str]):
         embeddings = self.model.encode(texts, prompt="query: ", normalize_embeddings=True)
         return embeddings
 
-from time import sleep
-from random import random
-class SimpleModel(InferenceModel):
-    task_type: ModelTaskType
-
-
-    def __init__(self) -> None:      
-        super().__init__() 
-
-        self.register_task_handler(ModelTaskType.PASSAGE, self.handle_passage)
-
-    def handle_passage(self, texts: List[str]):
-        sleep(0.1 + 0.005 * len(texts))
-        return [[random() * 50] * 768] * len(texts)

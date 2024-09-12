@@ -4,7 +4,7 @@ from model import TaskType
 import time 
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass
-from process_functions import worker_create_model, worker_model_predict, worker_prepare_model
+from lib.process_functions import worker_create_model, worker_model_predict, worker_prepare_model
 from collections import deque
 
 @dataclass
