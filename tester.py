@@ -7,7 +7,7 @@ with open("./texts.txt") as f:
 
 base_url = "http://localhost:8000"
 
-concurrency = 10
+concurrency = 20
 client = httpx.AsyncClient()
 
 async def actor(endpoint):
@@ -16,7 +16,7 @@ async def actor(endpoint):
         sample = random.choices(texts, k=sample_size)
 
         try:
-            r = await client.post(base_url + endpoint, json=sample)
+            r = await client.post(base_url + endpoint, json=sample, timeout=60.0)
             print(f"Request with {len(sample)} done")
         except Exception as e:
             print("Error:", e)
@@ -28,6 +28,7 @@ async def actor(endpoint):
 async def main():
     for i in range(concurrency):
         asyncio.create_task(actor("/passage"))
+        asyncio.create_task(actor("/query"))
     
 
 loop = asyncio.get_event_loop()

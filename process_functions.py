@@ -15,6 +15,9 @@ def worker_model_predict(task_type: TaskType, data: List[Any]):
     start_time = perf_counter()
     result = model.task(task_type, data) 
     inference_time = int((perf_counter() - start_time) * 1000)
-    print(f"Batch size: {len(data)} | {inference_time}ms")
+    print(f"Batch size: {len(data)} | {inference_time}ms | Task: {task_type}")
     return result
+
+def worker_prepare_model():
+    pass
 ########################################################

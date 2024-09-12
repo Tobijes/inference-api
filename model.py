@@ -33,11 +33,12 @@ class Model(InferenceModel):
 
     def __init__(self) -> None:      
         super().__init__() 
-
+        print("Loading model...")
         self.model = SentenceTransformer('intfloat/multilingual-e5-large')
 
         self.register_task_handler(ModelTaskType.PASSAGE, self.handle_passage)
         self.register_task_handler(ModelTaskType.QUERY, self.handle_query)
+        print("Model initiated on", self.model.device)
 
     def handle_passage(self, texts: List[str]):
         embeddings = self.model.encode(texts, prompt="passage: ", normalize_embeddings=True)
@@ -46,3 +47,18 @@ class Model(InferenceModel):
     def handle_query(self, texts: List[str]):
         embeddings = self.model.encode(texts, prompt="query: ", normalize_embeddings=True)
         return embeddings
+
+from time import sleep
+from random import random
+class SimpleModel(InferenceModel):
+    task_type: ModelTaskType
+
+
+    def __init__(self) -> None:      
+        super().__init__() 
+
+        self.register_task_handler(ModelTaskType.PASSAGE, self.handle_passage)
+
+    def handle_passage(self, texts: List[str]):
+        sleep(0.1 + 0.005 * len(texts))
+        return [[random() * 50] * 768] * len(texts)
