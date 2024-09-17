@@ -17,7 +17,10 @@ async def actor(endpoint):
 
         try:
             r = await client.post(base_url + endpoint, json=sample, timeout=60.0)
-            print(f"Request with {len(sample)} done")
+            if r.status_code == 200:
+                print(f"Request with {len(sample)} done")
+            else:
+                print(f"Request with {len(sample)} had error {r.text}")
         except Exception as e:
             print("Error:", e)
         # Sleep 0-5 seconds

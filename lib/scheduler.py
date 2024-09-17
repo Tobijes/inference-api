@@ -1,11 +1,11 @@
 from typing import List, Any, Dict, Type
-import asyncio
-from model import TaskType
-import time 
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import dataclass
-from lib.process_functions import worker_create_model, worker_model_predict, worker_prepare_model
+from dataclasses import dataclass 
 from collections import deque
+import asyncio
+
+from .model import TaskType, ModelError
+from .process_functions import worker_create_model, worker_model_predict, worker_prepare_model
 
 @dataclass
 class TaskElement:
@@ -104,13 +104,22 @@ class BatchScheduler:
             # Get task batch from queue
             task_batch: TaskBatch = await self.batch_queue.get()
             self.batch_sizes.append(len(task_batch.buffer))
+
             # Split the task batch elements into native list
             futures = list(map(lambda x: x.future, task_batch.buffer))
             data = list(map(lambda x: x.data, task_batch.buffer))
 
             # Run the model with list of data
             loop = asyncio.get_running_loop()
-            result = await loop.run_in_executor(self.pool, worker_model_predict, task_batch.task_type, data)
+            
+            inference_time, result = await loop.run_in_executor(self.pool, worker_model_predict, task_batch.task_type, data)
+            if isinstance(result, ModelError):
+                print(f"Batch size: {len(data)} | {inference_time}ms | Task: {task_batch.task_type} | Had error")
+                for f in futures:
+                    f.set_exception(result.exception)
+                continue
+
+            print(f"Batch size: {len(data)} | {inference_time}ms | Task: {task_batch.task_type}")
             # Set the individual element results
             for (f, r) in zip(futures, result):
                 f.set_result(r)

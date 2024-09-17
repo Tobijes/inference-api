@@ -1,5 +1,10 @@
 from typing import List, Any
 from enum import Enum
+from dataclasses import dataclass
+
+@dataclass
+class ModelError(Exception):
+    exception: Exception
 
 class TaskType(str, Enum):
     pass
@@ -23,6 +28,8 @@ class InferenceModel():
     def task(cls, task_type: TaskType):
         # This decorator will store the task_type and function to be registered later
         def decorator(func):
+            if task_type in cls._task_registry:
+                raise Exception("Duplicate task types defined across InferenceModel classes. Please define unique task types")
             cls._task_registry[task_type] = func
             return func
         return decorator
