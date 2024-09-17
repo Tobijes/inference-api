@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from collections import deque
 import asyncio
 
-from .model import TaskType, ModelError
+from .model import InferenceModel, ModelError
 from .process_functions import worker_create_model, worker_model_predict, worker_prepare_model
 
 @dataclass
@@ -14,7 +14,7 @@ class TaskElement:
 
 @dataclass
 class TaskBatch:
-    task_type: TaskType
+    task_name: str
     buffer: List[TaskElement]
 
 class BatchScheduler:
@@ -23,23 +23,23 @@ class BatchScheduler:
     fill_queue_size_threshold = 3
     num_workers = 1
 
-    def __init__(self, model_type: Type):
-        task_types = [task_type for task_type in model_type.__annotations__.get('task_type')]
+    def __init__(self, model_type: Type[InferenceModel]):
+        self.model_type = model_type
         self.pool = ProcessPoolExecutor(
             max_workers=self.num_workers,
             initializer=worker_create_model,
             initargs=(model_type,)
         )
 
-        self.task_queues: Dict[TaskType, asyncio.Queue[TaskElement]]  = {}
+        self.task_queues: Dict[str, asyncio.Queue[TaskElement]]  = {}
         self.batch_queue: asyncio.Queue[TaskBatch] = asyncio.Queue()
         self.batch_sizes = deque(maxlen=10)
 
         # Create queues for each task type and startk worker,
         loop = asyncio.get_running_loop()
-        for task_type in task_types:
-            self.task_queues[task_type] = asyncio.Queue()
-            loop.create_task(self.task_worker(task_type))
+        for task_name in self.model_type.get_task_names():
+            self.task_queues[task_name] = asyncio.Queue()
+            loop.create_task(self.task_worker(task_name))
 
         for _ in range(self.num_workers):
             loop.create_task(self.batch_queue_worker())
@@ -51,14 +51,14 @@ class BatchScheduler:
     def stop(self):
         self.pool.shutdown()
 
-    def get_queue_sizes(self):
+    def get_queue_size(self):
         return {
             "batch_queue_size": self.batch_queue.qsize(),
             "batch_avg_size": sum(self.batch_sizes) / 10
         }
 
-    async def submit_task(self, task_type: TaskType, data: List[Any]):
-        queue = self.task_queues[task_type]
+    async def submit_task(self, task_name: str, data: List[Any]):
+        queue = self.task_queues[task_name]
         loop = asyncio.get_running_loop()
         futures = [loop.create_future() for _ in data]
 
@@ -71,8 +71,8 @@ class BatchScheduler:
         return [future.result() for future in futures]
 
 
-    async def task_worker(self, task_type: TaskType):
-        queue = self.task_queues[task_type]
+    async def task_worker(self, task_name: str):
+        queue = self.task_queues[task_name]
 
         buffer = []
         while True: # Worker loop
@@ -93,7 +93,7 @@ class BatchScheduler:
                 continue
 
             # Send batch 
-            batch = TaskBatch(task_type=task_type, buffer=buffer)
+            batch = TaskBatch(task_name=task_name, buffer=buffer)
             await self.batch_queue.put(batch)
 
             # Clear buffer
@@ -112,14 +112,15 @@ class BatchScheduler:
             # Run the model with list of data
             loop = asyncio.get_running_loop()
             
-            inference_time, result = await loop.run_in_executor(self.pool, worker_model_predict, task_batch.task_type, data)
+            inference_time, result = await loop.run_in_executor(self.pool, worker_model_predict, task_batch.task_name, data)
+            inference_log = f"Batch size: {len(data)} | {inference_time}ms | Model: {self.model_type.__name__} | Task: {task_batch.task_name}" 
             if isinstance(result, ModelError):
-                print(f"Batch size: {len(data)} | {inference_time}ms | Task: {task_batch.task_type} | Had error")
+                print(inference_log + " | Had error")
                 for f in futures:
                     f.set_exception(result.exception)
                 continue
 
-            print(f"Batch size: {len(data)} | {inference_time}ms | Task: {task_batch.task_type}")
+            print(inference_log)
             # Set the individual element results
             for (f, r) in zip(futures, result):
                 f.set_result(r)

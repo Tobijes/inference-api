@@ -1,7 +1,6 @@
 from time import perf_counter
 from typing import List, Any
-from dataclasses import dataclass
-from .model import InferenceModel, TaskType, ModelError
+from .model import InferenceModel, ModelError
 
 ########################################################
 ### Functions that will be run in the worker process ###
@@ -13,10 +12,10 @@ def worker_create_model(model_type):
     model = model_type()
  
  
-def worker_model_predict(task_type: TaskType, data: List[Any]):
+def worker_model_predict(task_name: str, data: List[Any]):
     start_time = perf_counter()
     try:
-        result = model.run_task(task_type, data) 
+        result = model.run_task(task_name, data) 
     except Exception as e:
         result = ModelError(e)
     inference_time = int((perf_counter() - start_time) * 1000)
