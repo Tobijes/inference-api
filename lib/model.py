@@ -6,9 +6,10 @@ class TaskKey:
     model_name: str
     task_name: str
 
-@dataclass
-class ModelError(Exception):
-    exception: Exception
+class ModelException(Exception):
+    def __init__(self, message, status_code=500) -> None:
+        super().__init__(message)
+        self.status_code = status_code
 
 class InferenceModel:
     _task_registry: Dict[TaskKey, Callable] = {}

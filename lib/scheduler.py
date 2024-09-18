@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from collections import deque
 import asyncio
 
-from .model import InferenceModel, ModelError
+from .model import InferenceModel
 from .process_functions import worker_create_model, worker_model_predict, worker_prepare_model
 
 @dataclass
@@ -57,7 +57,7 @@ class BatchScheduler:
             "batch_avg_size": sum(self.batch_sizes) / 10
         }
 
-    async def submit_task(self, task_name: str, data: List[Any]):
+    async def submit_tasks(self, task_name: str, data: List[Any]):
         queue = self.task_queues[task_name]
         loop = asyncio.get_running_loop()
         futures = [loop.create_future() for _ in data]
@@ -112,17 +112,17 @@ class BatchScheduler:
             # Run the model with list of data
             loop = asyncio.get_running_loop()
             
-            inference_time, result = await loop.run_in_executor(self.pool, worker_model_predict, task_batch.task_name, data)
-            inference_log = f"Batch size: {len(data)} | {inference_time}ms | Model: {self.model_type.__name__} | Task: {task_batch.task_name}" 
-            if isinstance(result, ModelError):
+            task_result = await loop.run_in_executor(self.pool, worker_model_predict, task_batch.task_name, data)
+            inference_log = f"Batch size: {len(data)} | {task_result.inference_time}ms | Model: {self.model_type.__name__} | Task: {task_batch.task_name}" 
+            if task_result.error is not None:
                 print(inference_log + " | Had error")
                 for f in futures:
-                    f.set_exception(result.exception)
+                    f.set_exception(task_result.error)
                 continue
 
             print(inference_log)
             # Set the individual element results
-            for (f, r) in zip(futures, result):
+            for (f, r) in zip(futures, task_result.result):
                 f.set_result(r)
 
 
