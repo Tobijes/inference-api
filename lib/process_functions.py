@@ -30,11 +30,11 @@ def worker_model_predict(task_name: str, data: List[Any]) -> TaskResult:
         result = model.run_task(task_name, data) 
     except ModelError as me:
         logging.getLogger('uvicorn.error').error("Model Error: %s", me.message)
-        result = me
+        error = me
     except Exception as e:
         message = f"{type(e).__name__}: {str(e)}"
         logging.getLogger('uvicorn.error').error(message)
-        result = ModelError(message=message, http_status_code=400)
+        error = ModelError(message=message, http_status_code=400)
     inference_time = int((perf_counter() - start_time) * 1000)
     return TaskResult(
         inference_time = inference_time,

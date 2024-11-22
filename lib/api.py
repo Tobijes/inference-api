@@ -12,19 +12,14 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from prometheus_fastapi_instrumentator import Instrumentator
-from prometheus_client import Histogram
-
+from prometheus_client import Histogram, Gauge
 # Own
 from .model import InferenceModel
-from .scheduler import BatchScheduler
+from .scheduler import Scheduler
 from lib.model import InferenceModel, ModelError
 from lib.api_models import HealthCheckModel
 from lib.settings import SettingsLoader, BaseSettings
 from lib.logging import EndpointFilter
-
-# Define your custom histogram metric for inference times
-inference_time_histogram = Histogram('model_inference_time', 'Time taken for model inference')
-wait_time_histogram = Histogram('model_wait_time', 'Time spent waiting for queue and model inference')
 
 # OpenAPI Tags
 OPENAPI_TAGS_MODEL = ["Model"]
@@ -60,7 +55,7 @@ class RequestDurationMiddleware(BaseHTTPMiddleware):
         return response
 
 class InferenceAPI(FastAPI):
-    _scheduler: BatchScheduler
+    _scheduler: Scheduler
     logger: logging.Logger
     settings: BaseSettings
 
@@ -75,10 +70,10 @@ class InferenceAPI(FastAPI):
         self.settings = SettingsLoader.load(BaseSettings)
 
         # Create scheduler for model
-        self._scheduler = BatchScheduler(model_type)
+        self._scheduler = Scheduler(model_type)
 
         # Add Prometheus
-        self.instrumentator = Instrumentator()#.instrument(self)
+        self.instrumentator = Instrumentator()
 
         # Add static Swagger Docs UI files
         static_directory = Path(__file__).parent / "static"
@@ -109,9 +104,9 @@ class InferenceAPI(FastAPI):
         # Load the ML model
         await self._scheduler.start()
 
-        # Expose Prometheus
-        self.instrumentator.add(inference_time_histogram)
-        self.instrumentator.add(wait_time_histogram)
+        # Setup Prometheus
+        for instrumentation in self._scheduler.metrics.get_instrumentations():
+            self.instrumentator.add(instrumentation)
         self.instrumentator.expose(self, tags=OPENAPI_TAGS_SYSTEM)
 
         # Let FastAPI take over
@@ -144,9 +139,6 @@ class InferenceAPI(FastAPI):
             content=exc.message,
         )
 
-    async def get_queue_sizes(self):
-        return self._scheduler.get_queue_size()
-    
     async def submit_task(self, task_signature, data: Any):
         task_key = InferenceModel.get_task_key(task_signature)
         result = await self._scheduler.submit_tasks(task_name=task_key.task_name, data=[data])

@@ -12,7 +12,9 @@ class BaseSettings:
     POOL_WORKERS: int = 1
     USE_GPU: bool = True
     WARMUP: bool = True
-    MODEL_CACHE: str = str(Path.home()) + "/.cache/inference_api_models"
+    MAX_BATCH_SIZE = 32 # Max size of batch
+    MAX_BATCH_WAIT_TIME = 0.05 # Max milliseconds to wait for filling up a batch 
+    FILL_QUEUE_SIZE_THRESHOLD = 3 # Set queue size threshold for ignoring MAX_BATCH_WAIT_TIME
 
 class SettingsLoader:
 

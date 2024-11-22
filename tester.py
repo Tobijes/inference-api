@@ -32,7 +32,7 @@ async def main():
     for i in range(concurrency):
         asyncio.create_task(actor("/passage"))
         asyncio.create_task(actor("/query"))
-        asyncio.create_task(actor("/batch"))
+        # asyncio.create_task(actor("/batch"))
     
 
 loop = asyncio.get_event_loop()

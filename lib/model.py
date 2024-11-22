@@ -1,5 +1,9 @@
-from typing import List, Any, Dict, Callable
+import logging
+from typing import List, Any, Dict, Callable, Optional, get_type_hints
 from dataclasses import dataclass
+
+from lib.settings import BaseSettings, SettingsLoader
+from lib.utils import is_cuda_available
 
 @dataclass(frozen=True)
 class TaskKey:
@@ -16,10 +20,22 @@ class ModelError(Exception):
 
 class InferenceModel:
     _task_registry: Dict[TaskKey, Callable] = {}
+
+    model_metrics_timing_buckets = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 90.0, 120.0, 200.0]
+
+    settings: BaseSettings
+    model_name = "Default Model"
+    device: str = "cpu"
     
     def __init__(self) -> None:        
         tasks = ", ".join(self.get_task_names())
         print(f"Model '{self.__class__.__name__}' initiating with following tasks defined: {tasks}")
+        self.logger = logging.getLogger('uvicorn.error')
+        # Load settings
+        settings_type = get_type_hints(type(self))["settings"]
+        self.settings = SettingsLoader.load(settings_type)
+        # Set device CPU/CUDA
+        self.device = "cuda" if (is_cuda_available() and self.settings.USE_GPU) else "cpu"
         
     def run_task(self, task_name: str, data: List[Any]):
         task_key = TaskKey(self.__class__.__name__, task_name)

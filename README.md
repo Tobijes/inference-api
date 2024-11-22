@@ -36,10 +36,9 @@ Multiple requests with the same task are batched together for more efficient usa
 The Dynamic Batching algorithm can take the following into account:
 1. Time since batch was started. 
 2. Statically defined maximum batch size (`INFERENCE_MAX_BATCH_SIZE`)
-3. Task-specific maximum_batch_size (`INFERENCE_MAX_BATCH_SIZE_<TASKNAME>`)
-3. Padding-aware batching.  
-    - Each element in the batch is padded to the longest element. 
-4. Dynamic RAM/VRAM requirements. 
+3. Task-specific maximum_batch_size (`INFERENCE_MAX_BATCH_SIZE_<TASKNAME>`) **(Not implemented)**
+3. Dynamic RAM/VRAM requirements. **(Not implemented)**
+    - Padding-aware batching. Each element in the batch is padded to the longest element. 
     - Uses an estimation model (linear regression) to estimate memory required for a batch and limits accordingly. The estimation tool is required to set parameters.
 
 ## Included in the package
