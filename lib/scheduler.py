@@ -5,7 +5,7 @@ from collections import deque
 import asyncio
 
 from .model import InferenceModel
-from .process_functions import worker_create_model, worker_model_predict, worker_prepare_model
+from .process_functions import worker_create_model, worker_model_predict, worker_model_prepare
 
 @dataclass
 class TaskElement:
@@ -31,22 +31,25 @@ class BatchScheduler:
             initargs=(model_type,)
         )
 
+        # Queue for the individual task elements before being batch grouped
         self.task_queues: Dict[str, asyncio.Queue[TaskElement]]  = {}
+        # Queue for the batches of elements already batched up
         self.batch_queue: asyncio.Queue[TaskBatch] = asyncio.Queue()
+        # Deque for computing statistics
         self.batch_sizes = deque(maxlen=10)
 
         # Create queues for each task type and startk worker,
         loop = asyncio.get_running_loop()
         for task_name in self.model_type.get_task_names():
             self.task_queues[task_name] = asyncio.Queue()
-            loop.create_task(self.task_worker(task_name))
+            loop.create_task(self.task_batcher_worker(task_name))
 
         for _ in range(self.num_workers):
             loop.create_task(self.batch_queue_worker())
 
     async def start(self):
         loop = asyncio.get_running_loop()
-        await loop.run_in_executor(self.pool, worker_prepare_model)
+        await loop.run_in_executor(self.pool, worker_model_prepare)
 
     def stop(self):
         self.pool.shutdown()
@@ -71,7 +74,7 @@ class BatchScheduler:
         return [future.result() for future in futures]
 
 
-    async def task_worker(self, task_name: str):
+    async def task_batcher_worker(self, task_name: str):
         queue = self.task_queues[task_name]
 
         buffer = []
@@ -113,7 +116,7 @@ class BatchScheduler:
             loop = asyncio.get_running_loop()
             
             task_result = await loop.run_in_executor(self.pool, worker_model_predict, task_batch.task_name, data)
-            inference_log = f"Batch size: {len(data)} | {task_result.inference_time}ms | Model: {self.model_type.__name__} | Task: {task_batch.task_name}" 
+            inference_log = f"Batch size: {len(data)} | {task_result.inference_time}ms | Task: {task_batch.task_name}" 
             if task_result.error is not None:
                 print(inference_log + " | Had error")
                 for f in futures:

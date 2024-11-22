@@ -1,67 +1,158 @@
-from typing import List, Type, Any, Dict, Iterable
-
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+# First-party
+from pathlib import Path
+import logging
+from typing import Callable, Any, Tuple, Type, List, Dict, Iterable
 from contextlib import asynccontextmanager
+from time import perf_counter
 
-from .model import InferenceModel, ModelException
+# Third-party
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse, JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from prometheus_fastapi_instrumentator import Instrumentator
+from prometheus_client import Histogram
+
+# Own
+from .model import InferenceModel
 from .scheduler import BatchScheduler
+from lib.model import InferenceModel, ModelError
+from lib.api_models import HealthCheckModel
+from lib.settings import SettingsLoader, BaseSettings
+from lib.logging import EndpointFilter
 
+# Define your custom histogram metric for inference times
+inference_time_histogram = Histogram('model_inference_time', 'Time taken for model inference')
+wait_time_histogram = Histogram('model_wait_time', 'Time spent waiting for queue and model inference')
 
+# OpenAPI Tags
+OPENAPI_TAGS_MODEL = ["Model"]
+OPENAPI_TAGS_SYSTEM = ["System"]
+tags_metadata = [
+    {
+        "name": OPENAPI_TAGS_MODEL[0],
+        "description": "Endpoints custom to the model",
+    },
+    {
+        "name": OPENAPI_TAGS_SYSTEM[0],
+        "description": "Endpoints related to the shared API system",
+    },
+]
 
-class UnicornException(Exception):
-    def __init__(self, name: str):
-        self.name = name
+HEALTH_ENDPOINT_DESCRIPTION = """
+## Description
+Endpoint for checking if worker pool and API is up.
+"""
+class RequestDurationMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
+
+        # Start timer
+        start_time = perf_counter()
+
+        # Do actual call
+        response = await call_next(request) 
+
+        # Measure and set header
+        process_time = perf_counter() - start_time
+        response.headers["X-Request-Duration"] = f"{process_time:.6f}"
+
+        return response
 
 class InferenceAPI(FastAPI):
-    _schedulers: Dict[str, BatchScheduler] = {}
+    _scheduler: BatchScheduler
+    logger: logging.Logger
+    settings: BaseSettings
 
-    def __init__(self, model_type: Type[InferenceModel] | List[Type[InferenceModel]]):
-        super().__init__(lifespan=self.lifespan)
+    def __init__(self, 
+            model_type: Type[InferenceModel],
+            redirect_to_docs = True,
+            filter_log_paths = ["/health", "/metrics"],
+            **kwargs
+        ):
+        super().__init__(lifespan=self.lifespan, docs_url=None, redoc_url=None, openapi_tags=tags_metadata, **kwargs)
+        self.logger = logging.getLogger('uvicorn.error')
+        self.settings = SettingsLoader.load(BaseSettings)
 
-        # Create schedulers for model types
-        if isinstance(model_type, List):
-            for mt in model_type:
-                self.add_scheduler(mt)
-        else:
-            self.add_scheduler(model_type)
-        
+        # Create scheduler for model
+        self._scheduler = BatchScheduler(model_type)
+
+        # Add Prometheus
+        self.instrumentator = Instrumentator()#.instrument(self)
+
+        # Add static Swagger Docs UI files
+        static_directory = Path(__file__).parent / "static"
+        self.mount('/static', StaticFiles(directory=static_directory), name="static")
+
+        # Add custom exception handler 
+        self.add_exception_handler(ModelError, self.model_error_handler)
+
         # Add standard API routes
-        self.add_api_route("/health", self.health, methods=["GET"])
-        self.add_api_route("/queue", self.get_queue_sizes, methods=["GET"])
-        self.add_exception_handler(ModelException, self.model_exception_handler)
+        self.add_api_route("/docs", self.docs, methods=["GET"], include_in_schema=False) 
+        self.add_api_route("/health", self.health, methods=["GET"], tags=OPENAPI_TAGS_SYSTEM, 
+                           summary="System health check endpoints",
+                           description=HEALTH_ENDPOINT_DESCRIPTION)
+        
+        # Add root redirection to docs for convenience
+        if redirect_to_docs:
+            self.add_api_route("/", lambda: RedirectResponse(url='/docs'), methods=["GET"], include_in_schema=False)
 
-    def add_scheduler(self, model_type: Type[InferenceModel]):
-        self._schedulers[model_type.__name__] = BatchScheduler(model_type)
+        # Add filter to specific paths (e.g. health check endpoint)
+        for path in filter_log_paths:
+            logging.getLogger('uvicorn.access').addFilter(EndpointFilter(path=path))
+
+        # Add HTTP middleware
+        self.add_middleware(RequestDurationMiddleware)
 
     @asynccontextmanager
     async def lifespan(self, app: FastAPI):
         # Load the ML model
-        for (_, scheduler) in self._schedulers.items():
-            await scheduler.start()
-        yield
-        # Clean up the ML models and release the resources
-        for (_, scheduler) in self._schedulers.items():
-            scheduler.stop()
+        await self._scheduler.start()
 
-    async def model_exception_handler(self, request: Request, exc: ModelException):
-        return JSONResponse(
-            status_code=exc.status_code,
-            content={"message": str(exc)},
+        # Expose Prometheus
+        self.instrumentator.add(inference_time_histogram)
+        self.instrumentator.add(wait_time_histogram)
+        self.instrumentator.expose(self, tags=OPENAPI_TAGS_SYSTEM)
+
+        # Let FastAPI take over
+        self.logger.info("Starting API")
+        yield
+
+        # After FastAPI end
+        self.logger.info("API shutdown")
+
+        # Clean up the ML model and release the resources
+        self._scheduler.stop()
+
+    async def health(self) -> HealthCheckModel:
+        if self.pool == None:
+            raise HTTPException(status_code=500, detail="Pool is none!")
+        return HealthCheckModel(running=True)
+
+    async def docs(self):
+        return get_swagger_ui_html(
+            openapi_url=self.openapi_url,
+            title=self.title,
+            swagger_favicon_url=f'/static/favicon.png',
+            swagger_js_url=f'/static/swagger-ui-bundle.js',
+            swagger_css_url=f'/static/swagger-ui.css'
         )
 
-    async def health(self):
-        return "OK"
+    async def model_error_handler(self, request: Request, exc: ModelError):
+        return JSONResponse(
+            status_code=exc.http_status_code,
+            content=exc.message,
+        )
 
     async def get_queue_sizes(self):
-        return {model_type: scheduler.get_queue_size() for (model_type, scheduler) in self._schedulers.items()}
+        return self._scheduler.get_queue_size()
     
     async def submit_task(self, task_signature, data: Any):
         task_key = InferenceModel.get_task_key(task_signature)
-        result = await self._schedulers[task_key.model_name].submit_tasks(task_name=task_key.task_name, data=[data])
+        result = await self._scheduler.submit_tasks(task_name=task_key.task_name, data=[data])
         return result[0]
 
     async def submit_tasks(self, task_signature, data: Iterable[Any]):
         task_key = InferenceModel.get_task_key(task_signature)
-        result = await self._schedulers[task_key.model_name].submit_tasks(task_name=task_key.task_name, data=data)
+        result = await self._scheduler.submit_tasks(task_name=task_key.task_name, data=data)
         return result

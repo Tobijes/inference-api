@@ -1,0 +1,2 @@
+include inference_api/static/*.js
+include inference_api/static/*.css
