@@ -1,5 +1,6 @@
 sentence-transformers
 httpx
+nvidia-ml-py
 fastapi==0.111.0
 uvicorn==0.29.0
 build==1.2.1
