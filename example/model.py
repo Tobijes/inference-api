@@ -6,7 +6,8 @@ from sentence_transformers import SentenceTransformer
 from lib.model import InferenceModel, ModelError
     
 class Model(InferenceModel):
-
+    model_name = "ExampleModel"
+    
     def __init__(self) -> None:      
         super().__init__() 
         print("Loading model...")
