@@ -1,9 +1,14 @@
-sentence-transformers
-httpx
-nvidia-ml-py
-ipympl #
-fastapi==0.111.0
+# For API framework
+fastapi[standard]==0.115.6
 uvicorn==0.29.0
 build==1.2.1
 prometheus-fastapi-instrumentator==7.0.0
 typed-settings==24.3.0
+# For examples
+sentence-transformers
+httpx
+nvidia-ml-py
+ipympl 
+einops
+timm
+aiofiles

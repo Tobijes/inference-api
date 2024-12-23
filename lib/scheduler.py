@@ -134,6 +134,6 @@ class Scheduler:
                 f.set_result(r)
 
             # Update metrics (only if no error)
-            self.metrics.task_inference_time_histogram.labels(task_batch.task_name).observe(task_result.inference_time / 1000.0)
+            self.metrics.task_inference_time_histogram.labels(task_batch.task_name).observe(task_result.inference_time)
 
 

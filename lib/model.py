@@ -21,16 +21,14 @@ class ModelError(Exception):
 class InferenceModel:
     _task_registry: Dict[TaskKey, Callable] = {}
 
-    model_metrics_timing_buckets = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0, 60.0, 90.0, 120.0, 200.0]
+    model_metrics_timing_buckets = [50, 100, 500, 1000, 5000, 10000]
 
     settings: BaseSettings
-    model_name = "Default Model"
     device: str = "cpu"
     
     def __init__(self) -> None:        
-        tasks = ", ".join(self.get_task_names())
-        print(f"Model '{self.__class__.__name__}' initiating with following tasks defined: {tasks}")
         self.logger = logging.getLogger('uvicorn.error')
+        self.logger.info("Model '%s' initiating with following tasks defined: %s", self.__class__.__name__, ", ".join(self.get_task_names()))
         # Load settings
         settings_type = get_type_hints(type(self))["settings"]
         self.settings = SettingsLoader.load(settings_type)

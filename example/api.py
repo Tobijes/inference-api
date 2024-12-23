@@ -1,21 +1,25 @@
+import sys, os
+sys.path.append(os.path.abspath(".."))
+
+
 from typing import List
 from fastapi import HTTPException
 
 from lib.api import InferenceAPI, OPENAPI_TAGS_MODEL
-from .model import Model
-from .simple_model import SimpleModel
+from e5 import E5LargeModel
+from simple_model import SimpleModel
 
-app = InferenceAPI(model_type=Model)
+app = InferenceAPI(model_type=E5LargeModel)
 # app = InferenceAPI(model_type=SimpleModel)
 
 @app.post("/passage", tags=OPENAPI_TAGS_MODEL)
 async def predict(data: List[str]) -> List[List[float]]:
-    result = await app.submit_tasks(Model.passage, data)
+    result = await app.submit_tasks(E5LargeModel.passage, data)
     return result
 
 @app.post("/query", tags=OPENAPI_TAGS_MODEL)
 async def predict(data: List[str]) -> List[List[float]]:
-    result = await app.submit_tasks(Model.query, data)
+    result = await app.submit_tasks(E5LargeModel.query, data)
     return result
 
 @app.post("/batch", tags=OPENAPI_TAGS_MODEL)

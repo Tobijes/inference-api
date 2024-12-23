@@ -1,3 +1,6 @@
+import sys, os
+sys.path.append(os.path.abspath(".."))
+
 from typing import List
 from time import sleep
 from random import random

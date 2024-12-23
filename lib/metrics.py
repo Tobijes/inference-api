@@ -10,8 +10,17 @@ class Metrics:
     task_queue_size_gauge: Gauge
 
     def __init__(self, model_type: Type[InferenceModel]):
-        self.task_inference_time_histogram = Histogram("task_inference_time", documentation=f"Inference time for task", labelnames=["task_name"], buckets=model_type.model_metrics_timing_buckets)
-        self.task_queue_size_gauge = Gauge("task_queue_size", documentation=f"Queue size for task", labelnames=["task_name"])
+        self.task_inference_time_histogram = Histogram(
+            name="task_inference_time", 
+            documentation=f"Inference time for task", 
+            labelnames=["task_name"],
+            buckets=model_type.model_metrics_timing_buckets
+        )
+        self.task_queue_size_gauge = Gauge(
+            name="task_queue_size", 
+            documentation=f"Queue size for task", 
+            labelnames=["task_name"]
+        )
 
     def get_instrumentations(self):
         return [
