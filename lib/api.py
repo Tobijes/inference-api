@@ -157,7 +157,7 @@ class InferenceAPI(FastAPI):
         return get_swagger_ui_html(
             openapi_url=self.openapi_url,
             title=self.title,
-            swagger_favicon_url=f'/static/favicon.png',
+            swagger_favicon_url=f'/static/favicon-32x32.png',
             swagger_js_url=f'/static/swagger-ui-bundle.js',
             swagger_css_url=f'/static/swagger-ui.css'
         )
