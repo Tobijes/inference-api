@@ -19,12 +19,12 @@ from prometheus_fastapi_instrumentator import Instrumentator
 # Own
 from .model import InferenceModel
 from .scheduler import Scheduler
-from lib.model import InferenceModel
-from lib.api_models import HealthCheckModel
-from lib.settings import SettingsLoader, BaseSettings
-from lib.logging import EndpointFilter
-from lib.storage import Storage
-from lib.exceptions import APIHandledError, TaskCancelledError
+from inference_api.model import InferenceModel
+from inference_api.api_models import HealthCheckModel
+from inference_api.settings import SettingsLoader, BaseSettings
+from inference_api.logging import EndpointFilter
+from inference_api.storage import Storage
+from inference_api.exceptions import APIHandledError, TaskCancelledError
 
 VERSION = os.getenv("VERSION", "0.0.0")
 

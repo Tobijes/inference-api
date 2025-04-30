@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from fastapi import File, UploadFile, Request
 
 # Imports
-from lib import InferenceAPI, OPENAPI_TAGS_MODEL
+from inference_api import InferenceAPI, OPENAPI_TAGS_MODEL
 from simple_model import SimpleModel
 
 Vector = list[float]

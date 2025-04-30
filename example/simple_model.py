@@ -6,8 +6,8 @@ from time import sleep
 from random import random
 from pathlib import Path
 
-from lib.model import InferenceModel
-from lib.exceptions import ModelError
+from inference_api.model import InferenceModel
+from inference_api.exceptions import ModelError
 from settings import ModelSettings
 
 class SimpleModel(InferenceModel):

@@ -8,7 +8,7 @@ sys.path.append(os.path.abspath(".."))
 
 from typing import List
 
-from lib.api import InferenceAPI, OPENAPI_TAGS_MODEL
+from inference_api.api import InferenceAPI, OPENAPI_TAGS_MODEL
 from jina_clip import JinaClip
 
 app = InferenceAPI(model_type=JinaClip)

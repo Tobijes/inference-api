@@ -6,7 +6,7 @@ from time import perf_counter
 from random import random
 
 from sentence_transformers import SentenceTransformer
-from lib.model import InferenceModel, ModelError
+from inference_api.model import InferenceModel, ModelError
 from settings import ModelSettings
 
 from PIL import Image

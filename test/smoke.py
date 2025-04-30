@@ -5,7 +5,7 @@
 
 import asyncio
 
-from lib import InferenceAPI, InferenceModel
+from inference_api import InferenceAPI, InferenceModel
 
 class TestModel(InferenceModel):
 

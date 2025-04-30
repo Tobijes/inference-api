@@ -4,9 +4,9 @@ from typing import Any
 from collections.abc import Callable
 from dataclasses import dataclass
 
-from lib.settings import BaseSettings, SettingsLoader
-from lib.utils import is_cuda_available
-from lib.logging import WorkerAdapter
+from inference_api.settings import BaseSettings, SettingsLoader
+from inference_api.utils import is_cuda_available
+from inference_api.logging import WorkerAdapter
 
 @dataclass(frozen=True)
 class TaskKey:

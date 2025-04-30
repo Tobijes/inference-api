@@ -7,7 +7,7 @@ import logging
 from time import perf_counter_ns
 from functools import partial
 
-from lib.settings import  SettingsLoader
+from inference_api.settings import  SettingsLoader
 
 from .model import InferenceModel
 from .timestamped_queue import TimestampedQueue

@@ -1,7 +1,7 @@
 from prometheus_client import Gauge, Histogram
 
-from lib.model import InferenceModel
-from lib.settings import BaseSettings
+from inference_api.model import InferenceModel
+from inference_api.settings import BaseSettings
 
 def compute_batch_size_buckets(max_size):
     buckets = []
