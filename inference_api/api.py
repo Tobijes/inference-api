@@ -46,7 +46,7 @@ HEALTH_ENDPOINT_DESCRIPTION = """
 ## Description
 Endpoint for checking if worker pool and API is up.
 """
-class RequestDurationMiddleware(BaseHTTPMiddleware):
+class RequestInfoMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint):
 
         # Start timer
@@ -99,7 +99,7 @@ class InferenceAPI(FastAPI):
         self._scheduler = Scheduler(model_type)
 
         # Add HTTP middleware
-        self.add_middleware(RequestDurationMiddleware)
+        self.add_middleware(RequestInfoMiddleware)
 
         # Add Prometheus
         self.instrumentator = Instrumentator()
