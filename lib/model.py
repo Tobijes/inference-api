@@ -6,7 +6,6 @@ from dataclasses import dataclass
 
 from lib.settings import BaseSettings, SettingsLoader
 from lib.utils import is_cuda_available
-from lib.exceptions import UnknownTaskError
 from lib.logging import WorkerAdapter
 
 @dataclass(frozen=True)

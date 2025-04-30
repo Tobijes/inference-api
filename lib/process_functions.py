@@ -13,7 +13,7 @@ class TaskResult:
     process_id: int
     inference_time: int
     result: Any = None
-    error: Exception = None
+    error: ModelError = None
 
 ########################################################
 ### Functions that will be run in the worker process ###
@@ -30,16 +30,18 @@ def worker_model_predict(data: list[Any], **kwargs) -> TaskResult:
     start_time = perf_counter_ns()
     result = None
     error = None
+
     try:
         result = model.infer(data, **kwargs) 
     except ModelError as me:
-        logging.getLogger('uvicorn.error').error("Model Error: %s", me.message)
         error = me
     except Exception as e:
+        # Convert all exceptions to ModelError for known format
         message = f"{type(e).__name__}: {str(e)}"
-        logging.getLogger('uvicorn.error').error(message)
         error = ModelError(message=message, http_status_code=400)
+
     inference_time = int((perf_counter_ns() - start_time) / 10**6)
+
     return TaskResult(
         process_id = model.process_id,
         inference_time = inference_time,

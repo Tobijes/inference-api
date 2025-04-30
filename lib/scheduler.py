@@ -193,7 +193,7 @@ class Scheduler:
             # Handle error and do logging
             inference_log = f"Worker ID: {task_result.process_id} | Batch size: {len(data)} {cancelled_str}| Time: {task_result.inference_time}ms | Kwargs: {kwargs_str}" 
             if task_result.error is not None:
-                self.logger.error("%s | Had error", inference_log)
+                self.logger.error("%s | %s", inference_log, task_result.error.message)
                 for f in futures:
                     f.set_exception(task_result.error)
                 continue

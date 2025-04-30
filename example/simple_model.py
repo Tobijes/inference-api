@@ -44,4 +44,7 @@ class SimpleModel(InferenceModel):
         raise ValueError("Value small")    
 
     def simulate_known_error(self):
-        raise ModelError("Model hiccup", http_status_code=415)
+        try:
+            raise ValueError("Value small")
+        except Exception:
+            raise ModelError("Simulated handled known error", http_status_code=415)

@@ -26,6 +26,16 @@ app = InferenceAPI(SimpleModel, title=title, description=description)
 async def ping(data: list[str]) -> list[Vector]:
     return [[0.0, 0.0, 0.0]]
 
+@app.post("/known_error", tags=OPENAPI_TAGS_MODEL, summary="Endpoint for testing known error handling")
+async def known_error(request: Request):
+    result = await app.submit(request, None, task="known_error")
+    return result
+
+@app.post("/unknown_error", tags=OPENAPI_TAGS_MODEL, summary="Endpoint for testing unknown error handling")
+async def unknown_error(request: Request):
+    result = await app.submit(request, None, task="unknown_error")
+    return result
+
 class PredictInputRequest(BaseModel):
     text: str = Field(example="My String", min_length=1)
 

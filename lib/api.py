@@ -24,7 +24,7 @@ from lib.api_models import HealthCheckModel
 from lib.settings import SettingsLoader, BaseSettings
 from lib.logging import EndpointFilter
 from lib.storage import Storage
-from lib.exceptions import ModelError, BatchSizeExceededError, TaskCancelledError
+from lib.exceptions import APIHandledError, TaskCancelledError
 
 VERSION = os.getenv("VERSION", "0.0.0")
 
@@ -109,8 +109,7 @@ class InferenceAPI(FastAPI):
         self.mount('/static', StaticFiles(directory=static_directory), name="static")
 
         # Add custom exception handler 
-        self.add_exception_handler(ModelError, self.model_error_handler)
-        self.add_exception_handler(BatchSizeExceededError, self.batch_size_exceeded_error_handler)
+        self.add_exception_handler(APIHandledError, self.exception_handler)
         self.add_exception_handler(TaskCancelledError, self.task_cancelled_error_handler)
 
         # Add standard API routes
@@ -162,17 +161,8 @@ class InferenceAPI(FastAPI):
             swagger_css_url=f'/static/swagger-ui.css'
         )
 
-    async def model_error_handler(self, request: Request, exc: ModelError):
-        return JSONResponse(
-            status_code=exc.http_status_code,
-            content=exc.message,
-        )
-    
-    async def batch_size_exceeded_error_handler(self, request: Request, exc: BatchSizeExceededError):
-        return JSONResponse(
-            status_code=422,
-            content=str(exc),
-        )
+    async def exception_handler(self, request: Request, exc: APIHandledError):
+        return JSONResponse(status_code=exc.http_status_code, content={"message": exc.message})
     
     async def task_cancelled_error_handler(self, request: Request, exc: TaskCancelledError):
         return Response(status_code=status.HTTP_204_NO_CONTENT)
