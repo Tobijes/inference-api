@@ -18,7 +18,7 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 # Own
 from .model import InferenceModel
-from .scheduler import Scheduler
+from .scheduler import Scheduler, BatchableData
 from inference_api.model import InferenceModel
 from inference_api.api_models import HealthCheckModel
 from inference_api.settings import SettingsLoader, BaseSettings
@@ -168,7 +168,15 @@ class InferenceAPI(FastAPI):
         return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-    async def submit(self, request: Request, data: Any | list[Any], **kwargs):
+    async def submit(self, request: Request, data: BatchableData | list[BatchableData], **kwargs):
+        """
+        Submit data for inference by process pool. 
+
+        :param Request request: A reference to the incoming API request to determine if it is later cancelled by client.
+        :param BatchableData data: The independent element or list of independent elements that can be batched (in any order or split) by the schedule.
+        :param kwargs **kwargs: Arguments to be used for all the `data`. Submission elements are grouped by these arguments. Often used with ML pipeline-like function calls.
+        """
+        
         # Handle convenience of enablig both list of items and just a single item
         islist = isinstance(data, list)
         if not islist:

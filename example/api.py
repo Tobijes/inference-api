@@ -22,6 +22,9 @@ This a description of the **Test Model**
 
 app = InferenceAPI(SimpleModel, title=title, description=description)
 
+#
+# Endpoints for testing basic functionality
+#
 @app.post("/ping", tags=OPENAPI_TAGS_MODEL, summary="Primary model prediction endpoint")
 async def ping(data: list[str]) -> list[Vector]:
     return [[0.0, 0.0, 0.0]]
@@ -36,6 +39,9 @@ async def unknown_error(request: Request):
     result = await app.submit(request, None, task="unknown_error")
     return result
 
+#
+# Endpoint for testing single element inference
+#
 class PredictInputRequest(BaseModel):
     text: str = Field(example="My String", min_length=1)
 
@@ -50,6 +56,9 @@ async def predict(request: Request, data: PredictInputRequest) -> Vector:
     return result
 
 
+#
+# Endpoint for testing batch of elements inference
+#
 class PredictBatchInputRequest(BaseModel):
     texts: list[str] = Field(example=["My String"], min_length=1)
 
@@ -63,7 +72,9 @@ async def predict_batch(request: Request, data: PredictBatchInputRequest) -> lis
     result = await app.submit(request, data.texts, task="texts")
     return result
 
-
+#
+# Endpoint for testing inference of file-like elements
+#
 @app.post('/files', tags=OPENAPI_TAGS_MODEL)
 async def predict_files(request: Request, files: list[UploadFile] = File(...)) -> list[list[float]]:
     # Save files to disk, to be loaded by other process

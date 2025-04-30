@@ -1,11 +1,11 @@
 **Note:** Requires Python 3.11
 
 # Inference API
-This repo is a reusable Python module to create consistent APIs.
+This repo is a reusable Python module to create consistent APIs for synchronous ML model inference workloads.
 The module has the benefits:
 - Easy to API'rize a model. 
 - Handles process pooling ensuring that the event-loop of FastAPI is not blocked. Enables health checks, documentation requests and metrics to be accesible even when the model is inferencing and using most of the CPU.
-- Creating this package allows for new learnings to be easily reused across our APIs/models.
+- Creating this package allows for new learnings to be easily reused across APIs/models.
 
 ## Included in the package
 The main class of the package derives from the usual `FastAPI` object class, but adds a lot of default things on top. This includes:
@@ -18,6 +18,17 @@ The main class of the package derives from the usual `FastAPI` object class, but
 - Sets up instrumentation for Prometheus metrics collection. Default includes inference time histogram metric in high resolution and all API endpoints in low resolution.
 
 ## Mental model of the package
+The goal of the package is to seperate the CPU/GPU intensive part of ML inference from the async web API non-blocking nature. Easy to use "Dynamic Batching" is also a huge part of it. Inference requests are received in the `API` using the FastAPI framework and then forwarded to the `Scheduler`. The `Scheduler` forwards batches to a `Model`. Batches are made from queues group by keyword arguments in the submission call. The `Model` receives batches along with keyword arguments in the `infer()` function. It is up the `Model` class code to use the keyword arguments for required purposes like 
+- A `task` keyword argument for differentiating between multiple ways of embedding like "passage" or "query" in an text embedding model
+- A `source_language` or `target_language` keyword argument to use a predefined machine translation pipeline
+- A `modality` keyword argument for choosing preprocessing pipeline for multimodal models like CLIP that can embed both images and text.
+
+Multiple requests with the same task are batched together for more efficient usage of the device. The Dynamic Batching algorithm can take the following into account:
+1. Time since batch was started (`INFERENCE_MAX_BATCH_WAIT_MS`)
+2. Statically defined maximum batch size (`INFERENCE_MAX_BATCH_SIZE`)
+3. Element length aware batching **(Not implemented)**
+    - Sort items and create batches with items of matching length to reduce required padding tokens
+
 ```mermaid
 flowchart LR;
 
@@ -30,34 +41,24 @@ subgraph main["Main Process"]
 end
 
 subgraph procpool["Process Pool"]
-    subgraph w1["Worker (Process)"]
+    subgraph w1["Worker 1 (Child Process)"]
         m1["Model<br>Max Size: 8"]
     end
-    subgraph w2["Worker (Process)"]
+    subgraph w2["Worker 2 (Child Process)"]
         m2["Model<br>Max Size: 8"]
     end
 end
 
-a["User1"] -- Size: 11 --> E1
-b["User2"] -- Size: 3 --> E1
-c["User3"] -- Size: 5 --> E2
-E1 -- Task: Text, Size: 11 --> S
-E1 -- Task: Text, Size: 3 --> S
-E2 -- Task: Image, Size: 5 --> S
-S == Task: Text, Size: 8 ==> m1
-S == Task: Image, Size: 5 ==> m1
-S == Task: Text, Size: 6 ==> m2
+a["Client 1"] -- Size: 11 --> E1
+b["Client 2"] -- Size: 3 --> E1
+c["Client 3"] -- Size: 5 --> E2
+E1 -- Modality: Text, Size: 11 --> S
+E1 -- Modality: Text, Size: 3 --> S
+E2 -- Modality: Image, Size: 5 --> S
+S == Modality: Text, Size: 8 ==> m1
+S == Modality: Image, Size: 5 ==> m1
+S == Modality: Text, Size: 6 ==> m2
 ```
-The goal of the package is to seperate the CPU/GPU intensive part of ML inference from the async web API non-blocking nature. Easy to use "Dynamic Batching" is also a huge part of it. Inference requests are received in the `API` using the FastAPI framework and then forwarded to the `Scheduler`. The `Scheduler` forwards batches to a `Model`. A `Model` can be a Multi-Task `Model` by defining multiple `Task`s in the model implementation. This is useful for embedding models that has multiple ways of embedding like "passage" or "query", or multimodal models like CLIP that embeds both text and images with different preprocessing pipelines.
-
-Multiple requests with the same task are batched together for more efficient usage of the device. The Dynamic Batching algorithm can take the following into account:
-1. Time since batch was started (`INFERENCE_MAX_BATCH_WAIT_MS`)
-2. Statically defined maximum batch size (`INFERENCE_MAX_BATCH_SIZE`)
-3. Task-specific maximum batch size (`INFERENCE_MAX_BATCH_SIZE_<TASKNAME>`) **(Not implemented)**
-4. Padding-aware batching **(Not implemented)**
-    - Sort items and create batches with items of matching length to reduce required padding 
-
-
 
 ## About Process Pools
 On of the primary goals of this package is to simply using a model in a Python `ProcessPool`. Think of this as splitting the API web requests handling workload from the model inference workload into two "programs" (ie. processes). We can then using Python's `await` from the API process to wait for a inference task to finish in the model process. This allows other web requests like health checks, metric collection, Swagger documentation etc. to be handled even while a model inference task is being awaited.

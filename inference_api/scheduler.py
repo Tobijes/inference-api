@@ -15,10 +15,13 @@ from .process_functions import worker_create_model, worker_model_predict, worker
 from .metrics import Metrics
 from .exceptions import TaskCancelledError
 
+# Meaningful type hints
+BatchableData = Any
+
 @dataclass
 class Item:
     future: asyncio.Future
-    data: Any
+    data: BatchableData
     is_cancelled: Callable[[], Coroutine[None, None, bool]]
 
 @dataclass
