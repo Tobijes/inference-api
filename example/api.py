@@ -1,42 +1,69 @@
+# Mess with path to get example to import package
 import sys, os
 sys.path.append(os.path.abspath(".."))
 
+# Third-party
+from pydantic import BaseModel, Field
+from fastapi import File, UploadFile, Request
 
-from typing import List
-from fastapi import HTTPException
-
-from lib.api import InferenceAPI, OPENAPI_TAGS_MODEL
-from e5 import E5LargeModel
+# Imports
+from lib import InferenceAPI, OPENAPI_TAGS_MODEL
 from simple_model import SimpleModel
 
-app = InferenceAPI(model_type=E5LargeModel)
-# app = InferenceAPI(model_type=SimpleModel)
+Vector = list[float]
+#
+# API defintion
+#
+title = "My Test Model Inference API"
+description = """
+### Description
+This a description of the **Test Model**
+"""
 
-@app.post("/passage", tags=OPENAPI_TAGS_MODEL)
-async def predict(data: List[str]) -> List[List[float]]:
-    result = await app.submit_tasks(E5LargeModel.passage, data)
+app = InferenceAPI(SimpleModel, title=title, description=description)
+
+@app.post("/ping", tags=OPENAPI_TAGS_MODEL, summary="Primary model prediction endpoint")
+async def ping(data: list[str]) -> list[Vector]:
+    return [[0.0, 0.0, 0.0]]
+
+class PredictInputRequest(BaseModel):
+    text: str = Field(example="My String", min_length=1)
+
+@app.post("/predict", tags=OPENAPI_TAGS_MODEL, summary="Primary model prediction endpoint")
+async def predict(request: Request, data: PredictInputRequest) -> Vector:
+    """
+    ## Endpoint Description
+    This is a short summary of what the endpoints does
+    - We can even use **Markdown**
+    """
+    result = await app.submit(request, data.text, task="texts")
     return result
 
-@app.post("/query", tags=OPENAPI_TAGS_MODEL)
-async def predict(data: List[str]) -> List[List[float]]:
-    result = await app.submit_tasks(E5LargeModel.query, data)
+
+class PredictBatchInputRequest(BaseModel):
+    texts: list[str] = Field(example=["My String"], min_length=1)
+
+@app.post("/batch", tags=OPENAPI_TAGS_MODEL, summary="Primary model prediction endpoint")
+async def predict_batch(request: Request, data: PredictBatchInputRequest) -> list[Vector]:
+    """
+    ## Endpoint Description
+    This is a short summary of what the endpoints does
+    - We can even use **Markdown**
+    """
+    result = await app.submit(request, data.texts, task="texts")
     return result
 
-@app.post("/batch", tags=OPENAPI_TAGS_MODEL)
-async def predict(data: List[str]) -> List[List[float]]:
-    result = await app.submit_tasks(SimpleModel.predict, data)
-    return result
 
-@app.post("/predict", tags=OPENAPI_TAGS_MODEL)
-async def predict(data: str) -> List[float]:
-    result = await app.submit_task(SimpleModel.predict, data)
-    return result
+@app.post('/files', tags=OPENAPI_TAGS_MODEL)
+async def predict_files(request: Request, files: list[UploadFile] = File(...)) -> list[list[float]]:
+    # Save files to disk, to be loaded by other process
+    file_paths = await app.storage.save_temporary_media(files)
 
-@app.post("/unknown", tags=OPENAPI_TAGS_MODEL)
-async def predict(data: List[str]) -> List[List[float]]:
-    result = await app.submit_task(SimpleModel.simulate_unknown_error, data)
+    try:
+        # Do inference on file list
+        feature_vectors = await app.submit(request, file_paths, task="files")
+    finally:
+        # Cleanup stored files
+        app.storage.delete_temporary_media(file_paths)
 
-@app.post("/known", tags=OPENAPI_TAGS_MODEL)
-async def predict(data: List[str]) -> List[List[float]]:
-    await app.submit_task(SimpleModel.simulate_known_error, data)
-    
+    return feature_vectors

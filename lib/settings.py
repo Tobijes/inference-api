@@ -1,7 +1,6 @@
 import typed_settings as ts
-from typing import TypeVar, Type
+from typing import TypeVar, Type, get_type_hints
 from dataclasses import dataclass
-from pathlib import Path
 
 T = TypeVar('T')
 APP_NAME = "INFERENCE"
@@ -9,15 +8,18 @@ APP_NAME = "INFERENCE"
 # Environment variables are prefixed with 'INFERENCE_', example usage 'INFERENCE_USE_GPU=True'
 @dataclass
 class BaseSettings:
-    POOL_WORKERS: int = 1
-    USE_GPU: bool = True
-    WARMUP: bool = True
-    MAX_BATCH_SIZE = 32 # Max size of batch
-    MAX_BATCH_WAIT_TIME = 0.05 # Max milliseconds to wait for filling up a batch 
-    FILL_QUEUE_SIZE_THRESHOLD = 3 # Set queue size threshold for ignoring MAX_BATCH_WAIT_TIME
+    POOL_WORKERS: int = 1 # Number of instances of the model to handle inference
+    USE_GPU: bool = True # Use GPU if CUDA is available
+    MAX_BATCH_SIZE: int = 32 # Max size of batch
+    MAX_BATCH_WAIT_MS: int = 50 # Max milliseconds to wait for filling up a batch 
 
 class SettingsLoader:
 
     @staticmethod
     def load(config_type: Type[T]) -> T:
+        return ts.load(config_type, appname=APP_NAME)
+    
+    @staticmethod
+    def load_from_model(model_type: Type[T]) -> BaseSettings:
+        config_type = get_type_hints(model_type)["settings"]
         return ts.load(config_type, appname=APP_NAME)

@@ -1,32 +1,40 @@
-from typing import Dict, Type
 from prometheus_client import Gauge, Histogram
 
 from lib.model import InferenceModel
+from lib.settings import BaseSettings
+
+def compute_batch_size_buckets(max_size):
+    buckets = []
+    k = 1
+    while k < max_size:
+        buckets.append(k)
+        k *= 2
+    buckets.append(max_size)
+    return buckets
 
 class Metrics:
-    batch_queue_size_gauge = Gauge("batch_queue_size", documentation="Queue size for batch queue")
-    batch_size_histogram = Histogram("batch_sizes", documentation="Batch sizes used", buckets=[1,2,4,6,8,16,32,64])
-    task_inference_time_histogram: Histogram
-    task_queue_size_gauge: Gauge
+    items_queue_size_gauge = Gauge("items_queue_size", documentation="Queue size for submitted items")
+    batch_size_histogram = Histogram
+    batch_inference_time_histogram =  Histogram
 
-    def __init__(self, model_type: Type[InferenceModel]):
-        self.task_inference_time_histogram = Histogram(
-            name="task_inference_time", 
-            documentation=f"Inference time for task", 
-            labelnames=["task_name"],
-            buckets=model_type.model_metrics_timing_buckets
+    def __init__(self, model_type: type[InferenceModel], settings: BaseSettings):
+
+        self.batch_size_histogram = Histogram(
+            name="batch_size",
+            documentation="Histogram for batch sized used",
+            buckets=compute_batch_size_buckets(settings.MAX_BATCH_SIZE)
         )
-        self.task_queue_size_gauge = Gauge(
-            name="task_queue_size", 
-            documentation=f"Queue size for task", 
-            labelnames=["task_name"]
+        
+        self.batch_inference_time_histogram = Histogram(
+            name="batch_inference_time",
+            documentation="Queue size for task",
+            buckets=model_type.model_metrics_timing_buckets
         )
 
     def get_instrumentations(self):
         return [
-            self.batch_queue_size_gauge,
+            self.items_queue_size_gauge,
             self.batch_size_histogram,
-            self.task_inference_time_histogram,
-            self.task_queue_size_gauge
+            self.batch_inference_time_histogram
         ]
     

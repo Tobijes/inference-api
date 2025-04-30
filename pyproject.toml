@@ -8,9 +8,11 @@ name = "inference_api"
 description = "Package to ensure consistent APIs"
 requires-python = ">=3.11"
 dependencies = [
-  "fastapi==0.115.6",
+  "fastapi[standard]==0.115.6",
   "prometheus-fastapi-instrumentator==7.0.0",
-  "typed-settings==24.6.0"
+  "typed-settings==24.5.0",
+  "aiofiles==24.1.0",
+  "setproctitle==1.3.5"
 ]
 
 [tool.setuptools]
